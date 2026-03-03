@@ -2,12 +2,15 @@ import os
 import json
 import subprocess
 import sys
+from datetime import datetime
 from openai import OpenAI
 
 client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
     base_url=os.environ.get("OPENAI_BASE_URL")
 )
+
+MEMORY_FILE = "agent_memory.md"
 
 tools = [
     {
@@ -83,11 +86,49 @@ available_functions = {
     "write_file": write_file
 }
 
-def run_agent(user_message, max_iterations=5):
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant that can interact with the system. Be concise."},
-        {"role": "user", "content": user_message}
-    ]
+def load_memory():
+    if not os.path.exists(MEMORY_FILE):
+        return ""
+    try:
+        with open(MEMORY_FILE, 'r') as f:
+            content = f.read()
+            lines = content.split('\n')
+            return '\n'.join(lines[-50:]) if len(lines) > 50 else content
+    except:
+        return ""
+
+def save_memory(task, result):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = f"\n## {timestamp}\n**Task:** {task}\n**Result:** {result}\n"
+    try:
+        with open(MEMORY_FILE, 'a') as f:
+            f.write(entry)
+    except:
+        pass
+
+def create_plan(task):
+    print("[Planning] Breaking down task...")
+    response = client.chat.completions.create(
+        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        messages=[
+            {"role": "system", "content": "Break down the task into 3-5 simple, actionable steps. Return as JSON array of strings."},
+            {"role": "user", "content": f"Task: {task}"}
+        ],
+        response_format={"type": "json_object"}
+    )
+    try:
+        plan_data = json.loads(response.choices[0].message.content)
+        steps = plan_data.get("steps", [task])
+        print(f"[Plan] {len(steps)} steps created")
+        for i, step in enumerate(steps, 1):
+            print(f"  {i}. {step}")
+        return steps
+    except:
+        return [task]
+
+def run_agent_step(task, messages, max_iterations=5):
+    messages.append({"role": "user", "content": task})
+    actions = []
     for _ in range(max_iterations):
         response = client.chat.completions.create(
             model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
@@ -97,19 +138,45 @@ def run_agent(user_message, max_iterations=5):
         message = response.choices[0].message
         messages.append(message)
         if not message.tool_calls:
-            return message.content
+            return message.content, actions, messages
         for tool_call in message.tool_calls:
             function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
             print(f"[Tool] {function_name}({function_args})")
             function_response = available_functions[function_name](**function_args)
+            actions.append({"tool": function_name, "args": function_args})
             messages.append({"role": "tool", "tool_call_id": tool_call.id, "content": function_response})
-    return "Max iterations reached"
+    return "Max iterations reached", actions, messages
+
+def run_agent_plus(task, use_plan=False):
+    memory = load_memory()
+    system_prompt = "You are a helpful assistant that can interact with the system. Be concise."
+    if memory:
+        system_prompt += f"\n\nPrevious context:\n{memory}"
+    messages = [{"role": "system", "content": system_prompt}]
+    if use_plan:
+        steps = create_plan(task)
+    else:
+        steps = [task]
+    all_results = []
+    for i, step in enumerate(steps, 1):
+        if len(steps) > 1:
+            print(f"\n[Step {i}/{len(steps)}] {step}")
+        result, actions, messages = run_agent_step(step, messages)
+        all_results.append(result)
+        print(f"\n{result}")
+    final_result = "\n".join(all_results)
+    save_memory(task, final_result)
+    return final_result
 
 if __name__ == "__main__":
+    use_plan = "--plan" in sys.argv
+    if use_plan:
+        sys.argv.remove("--plan")
     if len(sys.argv) < 2:
-        print("Usage: python agent.py 'your task here'")
+        print("Usage: python agent-plus.py [--plan] 'your task here'")
+        print("  --plan: Enable task planning and decomposition")
         sys.exit(1)
     task = " ".join(sys.argv[1:])
-    result = run_agent(task)
-    print(f"\n{result}")
+    run_agent_plus(task, use_plan=use_plan)
+

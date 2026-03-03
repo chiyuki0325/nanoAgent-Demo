@@ -15,10 +15,26 @@ pip install -r requirements.txt
 ```
 
 Set your environment variables:
+
+**macOS/Linux:**
 ```bash
 export OPENAI_API_KEY='your-key-here'
-export OPENAI_BASE_URL='https://api.openai.com/v1'  # optional, for custom endpoints
-export OPENAI_MODEL='gpt-4o-mini'  # optional, defaults to gpt-4o-mini
+export OPENAI_BASE_URL='https://api.openai.com/v1'  # optional
+export OPENAI_MODEL='gpt-4o-mini'  # optional
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:OPENAI_API_KEY='your-key-here'
+$env:OPENAI_BASE_URL='https://api.openai.com/v1'  # optional
+$env:OPENAI_MODEL='gpt-4o-mini'  # optional
+```
+
+**Windows (CMD):**
+```cmd
+set OPENAI_API_KEY=your-key-here
+set OPENAI_BASE_URL=https://api.openai.com/v1
+set OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## quick start

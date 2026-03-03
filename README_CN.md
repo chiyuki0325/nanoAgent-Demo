@@ -15,10 +15,26 @@ pip install -r requirements.txt
 ```
 
 设置环境变量：
+
+**macOS/Linux:**
 ```bash
 export OPENAI_API_KEY='your-key-here'
-export OPENAI_BASE_URL='https://api.openai.com/v1'  # 可选，用于自定义端点
-export OPENAI_MODEL='gpt-4o-mini'  # 可选，默认为 gpt-4o-mini
+export OPENAI_BASE_URL='https://api.openai.com/v1'  # 可选
+export OPENAI_MODEL='gpt-4o-mini'  # 可选
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:OPENAI_API_KEY='your-key-here'
+$env:OPENAI_BASE_URL='https://api.openai.com/v1'  # 可选
+$env:OPENAI_MODEL='gpt-4o-mini'  # 可选
+```
+
+**Windows (CMD):**
+```cmd
+set OPENAI_API_KEY=your-key-here
+set OPENAI_BASE_URL=https://api.openai.com/v1
+set OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## 快速开始
